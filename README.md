@@ -190,7 +190,7 @@ systemctl start fail2ban
 
 ## 👨‍💻 Autores
 
-* Paulo Daniel
+* Paulo Torres
 * Vinicius Marson
 * Victor Djalma
 
