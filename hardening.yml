@@ -1,0 +1,106 @@
+---
+- name: Hardening Debian Server
+  hosts: servers
+  become: yes
+
+  tasks:
+
+    # SSH seguro
+    - name: Desabilitar login root
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PermitRootLogin'
+        line: 'PermitRootLogin no'
+
+    - name: Desabilitar autenticação por senha
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PasswordAuthentication'
+        line: 'PasswordAuthentication no'
+
+    - name: Limitar tentativas de login
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^MaxAuthTries'
+        line: 'MaxAuthTries 3'
+
+    - name: Reiniciar SSH
+      service:
+        name: ssh
+        state: restarted
+
+    # Firewall
+    - name: Instalar UFW
+      apt:
+        name: ufw
+        state: present
+
+    - name: Ativar UFW
+      ufw:
+        state: enabled
+
+    - name: Liberar SSH
+      ufw:
+        rule: allow
+        port: '22'
+
+    - name: Bloquear conexões externas
+      ufw:
+        direction: incoming
+        policy: deny
+
+    # Serviços inseguros
+    - name: Parar FTP
+      service:
+        name: vsftpd
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+
+    - name: Parar Telnet
+      service:
+        name: inetd
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+
+    # Permissões
+    - name: Corrigir /etc/shadow
+      file:
+        path: /etc/shadow
+        mode: '0640'
+
+    - name: Corrigir /etc/passwd
+      file:
+        path: /etc/passwd
+        mode: '0644'
+
+    # Logs
+    - name: Ativar rsyslog
+      service:
+        name: rsyslog
+        state: started
+        enabled: yes
+
+    # Proteções de rede
+    - name: Aplicar sysctl
+      sysctl:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        reload: yes
+      loop:
+        - { key: 'net.ipv4.conf.all.rp_filter', value: '1' }
+        - { key: 'net.ipv4.conf.all.accept_redirects', value: '0' }
+        - { key: 'kernel.randomize_va_space', value: '2' }
+
+    # Fail2ban
+    - name: Instalar fail2ban
+      apt:
+        name: fail2ban
+        state: present
+
+    - name: Iniciar fail2ban
+      service:
+        name: fail2ban
+        state: started
+        enabled: yes
